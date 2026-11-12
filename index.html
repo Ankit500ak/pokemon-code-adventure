@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pokémon Code Adventure — Block Studio</title>
+<link rel="icon" type="image/png" href="desktop/icon.png" />
+<link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-ball"></span>
+    <div>
+      <h1>Pokémon Code Adventure</h1>
+      <p>Block Studio — build blocks once, automate the whole adventure.</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span id="pyStatus" class="pill" title="Python runtime status">🐍 Python: not loaded</span>
+    <span id="emuStatus" class="pill">🎮 Emulator: no ROM</span>
+    <span id="progressPill" class="pill">🏆 Missions: 0/0</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: Block Library + Missions -->
+  <aside class="col col-left">
+    <section class="panel" id="libraryPanel">
+      <div class="panel-head">
+        <h2>🧱 Block Library</h2>
+        <button id="newBlockBtn" class="btn small primary">+ New Block</button>
+      </div>
+      <input id="librarySearch" class="input" type="search" placeholder="Search blocks…" />
+      <div id="libraryList" class="library-list"></div>
+      <div class="row gap">
+        <button id="exportLibBtn" class="btn small">Export</button>
+        <button id="importLibBtn" class="btn small">Import</button>
+        <button id="loadCapstoneBtn" class="btn small">Load Capstone Project</button>
+      </div>
+      <textarea id="libraryJson" class="input mono hidden" rows="6" placeholder="Library JSON appears here for export; paste JSON here and press Import."></textarea>
+      <p class="hint">Click a block to add it to the workflow canvas. Custom blocks are saved in your browser (localStorage) — nothing is uploaded.</p>
+    </section>
+
+    <section class="panel" id="blockFormPanel">
+      <div class="panel-head"><h2>✏️ Block Editor</h2></div>
+      <div id="blockForm">
+        <label>Name <input id="bfName" class="input" placeholder="Move Route" /></label>
+        <div class="row gap">
+          <label class="grow">Language
+            <select id="bfLanguage" class="input">
+              <option value="javascript">JavaScript (browser)</option>
+              <option value="python">Python (browser · Pyodide)</option>
+              <option value="visual">Visual action (single API call)</option>
+              <option value="c">C (local runner)</option>
+              <option value="cpp">C++ (local runner)</option>
+              <option value="java">Java (local runner)</option>
+              <option value="rust">Rust (local runner)</option>
+              <option value="go">Go (local runner)</option>
+            </select>
+          </label>
+          <label>Colour <input id="bfColor" type="color" value="#4f8ff7" class="input color" /></label>
+          <label>Icon <input id="bfIcon" class="input icon" value="🧩" maxlength="2" /></label>
+        </div>
+        <label id="bfActionRow" class="hidden">Action (visual blocks)
+          <select id="bfAction" class="input">
+            <option value="up">up</option><option value="down">down</option>
+            <option value="left">left</option><option value="right">right</option>
+            <option value="forward">forward</option><option value="back">back</option>
+            <option value="turnLeft">turnLeft</option><option value="turnRight">turnRight</option>
+            <option value="interact">interact</option><option value="pressB">pressB</option>
+            <option value="pressStart">pressStart</option><option value="wait">wait</option>
+            <option value="attack">attack</option><option value="runAway">runAway</option>
+            <option value="battlePolicy">battlePolicy</option><option value="log">log</option>
+          </select>
+        </label>
+        <label>Description <input id="bfDescription" class="input" placeholder="What does this block do?" /></label>
+        <div class="panel-head"><h3>Parameters</h3><button id="bfAddParam" class="btn small">+ Param</button></div>
+        <div id="bfParams"></div>
+        <label>Body <span class="hint">(game API is in scope; use parameters by name or {{token}})</span>
+          <textarea id="bfBody" class="input mono" rows="6" spellcheck="false" placeholder="right(steps);"></textarea>
+        </label>
+        <div class="row gap">
+          <button id="bfSave" class="btn primary">Save Block</button>
+          <button id="bfCancel" class="btn">Cancel</button>
+        </div>
+        <p id="bfError" class="error"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="missionsPanel">
+      <div class="panel-head">
+        <h2>🗺️ Adventure Mode</h2>
+        <button id="resetProgressBtn" class="btn small danger">Reset</button>
+      </div>
+      <div id="missionList" class="mission-list"></div>
+      <div id="missionDetail" class="mission-detail"></div>
+    </section>
+  </aside>
+
+  <!-- CENTRE: worlds -->
+  <main class="col col-centre">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>🧪 Practice World</h2>
+        <div class="row gap">
+          <span id="worldStats" class="pill"></span>
+          <button id="resetWorldBtn" class="btn small">Reset World</button>
+        </div>
+      </div>
+      <canvas id="worldCanvas" width="576" height="384"></canvas>
+      <p class="hint">Works fully without a ROM — the whole learning system runs here. Arrow keys / WASD move manually when the recorder is on. Legend: 🌲 tree · 🏠 house · 💧 water · 🌱 tall grass · 🧑 NPC · 🪧 sign · 🚩 goal · ⭐ waypoint.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>🎮 GBA Emulator <span class="badge">BYO-ROM</span></h2>
+        <div class="row gap">
+          <button id="emuFullscreenBtn" class="btn small">Fullscreen</button>
+          <button id="emuReloadBtn" class="btn small">Load a different ROM (reload)</button>
+        </div>
+      </div>
+      <div id="romDrop" class="rom-drop">
+        <p><strong>Drop your own .gba file here</strong> or <label class="btn small primary file-label">Choose ROM file<input id="romFile" type="file" accept=".gba" hidden /></label></p>
+        <p class="hint">🔒 Bring Your Own ROM: the file stays in your browser on this device — it is never uploaded, and this project ships with <strong>no ROM</strong>. Only use a ROM you legally own (e.g. dumped from your own cartridge).</p>
+        <p id="romInfo" class="hint"></p>
+      </div>
+      <div id="emuGame"></div>
+      <p class="hint">Powered by <strong>EmulatorJS</strong> (GBA core) loaded from its CDN. If the CDN is unreachable, Practice World still works fully. In-emulator controls: arrows = D-pad, Z = A, X = B, Enter = Start, Shift = Select. <strong>Save states:</strong> use the save/load-state buttons in the emulator's own toolbar before running long automation — automation is experimental and ROM-dependent.</p>
+    </section>
+  </main>
+
+  <!-- RIGHT: Workflow + Editor + Console -->
+  <section class="col col-right">
+    <section class="panel" id="workflowPanel">
+      <div class="panel-head">
+        <h2>🔗 Workflow Canvas</h2>
+        <div class="row gap">
+          <button id="wfRunBtn" class="btn primary">▶ Run Workflow</button>
+          <button id="wfPauseBtn" class="btn">⏸ Pause</button>
+          <button id="wfStopBtn" class="btn danger">⏹ Stop</button>
+        </div>
+      </div>
+      <div id="canvasWrap">
+        <div id="canvasInner">
+          <svg id="wireLayer"></svg>
+          <div id="nodeLayer"></div>
+        </div>
+      </div>
+      <div class="row gap wrap">
+        <button id="wfGroupBtn" class="btn small">🧱 Save Selection as Group</button>
+        <input id="wfGroupName" class="input grow" placeholder="Group name (select 1+ blocks first — shift-click for multiple)" />
+        <button id="wfClearBtn" class="btn small danger">Clear Canvas</button>
+        <span class="hint">Mode:
+          <select id="runMode" class="input small-select">
+            <option value="practice">Practice World</option>
+            <option value="emulator">Emulator (experimental)</option>
+          </select>
+        </span>
+      </div>
+      <p class="hint">Wire blocks: click an <strong>output dot</strong> (right side) → then the next block's <strong>input dot</strong> (left side). Drag headers to arrange. Click a block to edit its parameters below. Execution starts at ▶ Start and follows the wires.</p>
+      <div id="nodeInspector" class="inspector hidden"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>⌨️ Code Editor</h2>
+        <div class="row gap">
+          <select id="presetSelect" class="input small-select"></select>
+          <button id="loadPresetBtn" class="btn small">Load</button>
+        </div>
+      </div>
+      <div class="editor-wrap">
+        <pre id="lineNumbers" aria-hidden="true">1</pre>
+        <textarea id="codeEditor" spellcheck="false" placeholder="// Write JavaScript here, or build blocks on the canvas…"></textarea>
+      </div>
+      <div class="row gap wrap">
+        <button id="runCodeBtn" class="btn primary">▶ Run Code</button>
+        <button id="pauseCodeBtn" class="btn">⏸ Pause</button>
+        <button id="stopCodeBtn" class="btn danger">⏹ Stop</button>
+        <label class="hint">Speed
+          <select id="speedSelect" class="input small-select">
+            <option value="420">Turtle</option>
+            <option value="240" selected>Normal</option>
+            <option value="110">Fast</option>
+            <option value="30">Turbo</option>
+          </select>
+        </label>
+        <button id="checkMissionBtn" class="btn">✅ Check Mission</button>
+        <button id="recordBtn" class="btn">⏺ Route Recorder</button>
+        <button id="insertRecordingBtn" class="btn hidden">Insert Recording as Code</button>
+      </div>
+      <p class="hint">Free code is JavaScript. For Python and other languages, create a block in Block Studio. Perception helpers (position(), isBlocked(), …) describe Practice World; in Emulator mode they are experimental frame-based estimates.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>🖥️ Console</h2>
+        <button id="clearConsoleBtn" class="btn small">Clear</button>
+      </div>
+      <div id="consoleLog" class="console"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>📖 Game API (quick reference)</h2></div>
+      <div class="api-grid">
+        <code>up/down/left/right(steps)</code><span>Walk (also turns you)</span>
+        <code>forward(steps) / back(steps)</code><span>Walk facing-way / backwards (no turn)</span>
+        <code>turnLeft() / turnRight()</code><span>Rotate facing</span>
+        <code>pressA() · interact() · talk()</code><span>A button — face a tile and use it</span>
+        <code>pressB() · holdB()</code><span>Toggle run mode</span>
+        <code>pressStart() / pressSelect()</code><span>Menu buttons</span>
+        <code>attack() / runAway()</code><span>Resolve a Practice World encounter</span>
+        <code>advanceDialogue(n)</code><span>Press A n times</span>
+        <code>wait(ms)</code><span>Pause the script</span>
+        <code>repeat(n, fn)</code><span>Loop helper</span>
+        <code>position() / facing()</code><span>Where am I / which way?</span>
+        <code>isBlocked() / atGoal() / inGrass()</code><span>Perception (Practice World)</span>
+        <code>encounterActive()</code><span>Is a battle on?</span>
+        <code>log(...) / say(...)</code><span>Write to the console</span>
+        <code>frameHash() / frameChanged()</code><span>Emulator mode (experimental)</span>
+      </div>
+      <p class="hint">Full documentation: <strong>docs/API.md</strong> and <strong>docs/BLOCKS.md</strong> in the project folder. Languages: Visual + JavaScript + Python run in the browser; C / C++ / Java / Rust / Go run through the optional local Code Runner (see docs/BLOCKS.md).</p>
+    </section>
+  </section>
+</div>
+
+<footer class="footer">
+  <p>Pokémon Code Adventure is a fan-made learning project. Pokémon © Nintendo / Creatures Inc. / GAME FREAK inc. This project ships with <strong>no game ROM</strong> and is not affiliated with Nintendo. ROM files are supplied by the user, stay on their device, and are never uploaded.</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

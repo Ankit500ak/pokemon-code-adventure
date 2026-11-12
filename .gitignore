@@ -1,0 +1,14 @@
+node_modules/
+release/
+*.log
+
+# NEVER commit ROMs, saves or emulator state — BYO-ROM stays on the user's device
+*.gba
+*.gb
+*.gbc
+*.sav
+*.srm
+*.state
+roms/
+
+.DS_Store
